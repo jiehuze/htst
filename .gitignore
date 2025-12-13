@@ -1,0 +1,5 @@
+output/*
+.idea
+.idea/*
+htst
+.DS_Store

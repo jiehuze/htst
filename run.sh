@@ -1,0 +1,1 @@
+./htst $RUN_MODE
