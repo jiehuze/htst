@@ -1,3 +1,5 @@
 servername: htst
 port: 8080
 filepath: uploads
+clean_file: false
+clean_cron: "0 0 * * *"

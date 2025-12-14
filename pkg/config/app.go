@@ -12,6 +12,8 @@ type App struct {
 	Servername string `mapstructure:"servername"`
 	Port       int    `mapstructure:"port"`
 	FilePath   string `mapstructure:"filepath"`
+	CleanFile  bool   `mapstructure:"clean_file"`
+	CleanCron  string `mapstructure:"clean_cron"`
 }
 
 func GetAppConf() App {

@@ -4,9 +4,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"htst/internal/app/models"
 	"htst/internal/app/repositories"
-	"htst/pkg/util"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type IInfoService interface {
@@ -17,6 +17,7 @@ type IInfoService interface {
 	IncrementInfoCount(id uint64) error
 	GetInfoByMD5(md5 string) (*models.Info, error)
 	CheckInfoExistsByMD5(md5 string) (bool, error)
+	ExistsInfoByTitle(title string) (bool, error)
 	GetInfoListByQuery(query models.InfoQuery) (int64, []*models.Info, error)
 	CleanFile(filePath string)
 }
@@ -71,6 +72,10 @@ func (s *InfoService) CheckInfoExistsByMD5(md5 string) (bool, error) {
 	return s.infoRepo.ExistsByMD5(md5)
 }
 
+func (s *InfoService) ExistsInfoByTitle(title string) (bool, error) {
+	return s.infoRepo.ExistsByTitle(title)
+}
+
 func (s *InfoService) GetInfoListByQuery(query models.InfoQuery) (int64, []*models.Info, error) {
 	// 设置默认值
 	if query.Page < 1 {
@@ -105,11 +110,14 @@ func (s *InfoService) CleanFile(filePath string) {
 		} else {
 			log.Debugf("处理文件: %s", fullPath)
 			// 添加文件处理逻辑
-			md5, _ := util.CalculateFileMD5(fullPath)
-			ex, err := s.infoRepo.ExistsByMD5(md5)
+			//md5, _ := util.CalculateFileMD5(fullPath)
+			//保存的文件是以md5值命名的
+			filenameWithoutExt := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			log.Debugf("处理文件(无后缀): %s", filenameWithoutExt)
+			ex, err := s.infoRepo.ExistsByMD5(filenameWithoutExt)
 			if err != nil || ex == false {
 				log.Errorf("文件 %s 未使用，删除该文件", fullPath)
-				//_ = os.Remove(fullPath)
+				_ = os.Remove(fullPath)
 				continue
 			}
 		}

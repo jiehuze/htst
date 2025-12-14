@@ -1,2 +1,5 @@
 servername: htst
-port: 8080
+port: 9811
+filepath: /app/htst
+clean_file: true
+clean_cron: "0 0 * * *"

@@ -9,6 +9,7 @@ type InfoQuery struct {
 	Type      string `form:"type"`
 	Title     string `form:"title"`
 	Format    string `form:"format"`
+	Md5       string `form:"md5"`
 	StartTime string `form:"start_time"`
 	EndTime   string `form:"end_time"`
 	Page      int    `form:"page"`

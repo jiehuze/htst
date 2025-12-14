@@ -16,6 +16,7 @@ type InfoRepository interface {
 	IncrementCount(id uint64) error
 	FindByMD5(md5 string) (*models.Info, error)
 	ExistsByMD5(md5 string) (bool, error)
+	ExistsByTitle(title string) (bool, error)
 	ListByQuery(query models.InfoQuery, offset, limit int) (int64, []*models.Info, error)
 }
 
@@ -79,6 +80,15 @@ func (r *infoRepository) FindByMD5(md5 string) (*models.Info, error) {
 func (r *infoRepository) ExistsByMD5(md5 string) (bool, error) {
 	var count int64
 	err := storage.DB.Model(&models.Info{}).Where("md5 = ?", md5).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *infoRepository) ExistsByTitle(title string) (bool, error) {
+	var count int64
+	err := storage.DB.Model(&models.Info{}).Where("title = ?", title).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

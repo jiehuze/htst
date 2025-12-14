@@ -35,6 +35,8 @@ func SetUp() *gin.Engine {
 		mainGroup.DELETE("/info/:id", infoController.DeleteInfo)
 		mainGroup.GET("/info/list", infoController.GetInfoList)
 		mainGroup.GET("/info/click/:id", infoController.Increment)
+		mainGroup.GET("/info/existsByTitle", infoController.ExistsInfoByTitle)
+		mainGroup.GET("/info/existsByMd5", infoController.ExistsInfoByMd5)
 	})
 
 	return g

@@ -3,6 +3,7 @@ package servers
 import (
 	"context"
 	"fmt"
+	"htst/internal/app/services"
 	"net/http"
 	"sync"
 
@@ -38,16 +39,24 @@ func ApiServer() IServer {
 
 func (r *api) Start() error {
 	log.Infoln("api sever start")
-	// 添加文件清理任务，每天凌晨1点执行
-	_, err := r.cron.AddFunc("0 14 18 * * *", func() {
-		log.Infoln("开始清理文件定时任务：", config.AppConf.FilePath)
-		//services.IInfo.CleanFile(config.AppConf.FilePath)
-	})
-	if err != nil {
-		log.Errorf("添加文件清理任务失败: %v", err)
-	} else {
-		log.Info("定时任务调度器启动成功")
-		r.cron.Start()
+
+	if config.AppConf.CleanFile {
+		// 添加文件清理任务，每天凌晨1点执行
+		cronExpr := config.AppConf.CleanCron
+		if cronExpr == "" {
+			cronExpr = "0 0 1 * * *" // 默认值
+		}
+
+		_, err := r.cron.AddFunc(cronExpr, func() {
+			log.Infoln("开始清理文件定时任务：", config.AppConf.FilePath)
+			services.IInfo.CleanFile(config.AppConf.FilePath)
+		})
+		if err != nil {
+			log.Errorf("添加文件清理任务失败: %v", err)
+		} else {
+			log.Info("定时任务调度器启动成功, 定时清理目录：", config.AppConf.FilePath)
+			r.cron.Start()
+		}
 	}
 	return r.server.ListenAndServe()
 }

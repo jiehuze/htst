@@ -1,18 +1,16 @@
 package v1
 
 import (
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"htst/pkg/util"
+	"htst/internal/app/controllers"
+	"htst/internal/app/models"
+	"htst/internal/app/services"
+	"htst/pkg/config"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
-
-	"github.com/gin-gonic/gin"
-	"htst/internal/app/controllers"
-	"htst/internal/app/models"
-	"htst/internal/app/services"
 )
 
 type InfoController struct {
@@ -25,56 +23,97 @@ func NewInfoController(infoService services.IInfoService) *InfoController {
 	}
 }
 
-func (c *InfoController) CreateInfo(ctx *gin.Context) {
-	file, err := ctx.FormFile("file")
-	if err != nil {
-		controllers.Response(ctx, http.StatusBadRequest, "文件上传失败", nil)
+func (c *InfoController) ExistsInfoByTitle(ctx *gin.Context) {
+	var query models.InfoQuery
+	// 绑定查询参数
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		controllers.Response(ctx, http.StatusBadRequest, "参数错误", nil)
+		return
+	}
+	exist, _ := c.infoService.ExistsInfoByTitle(query.Title)
+	if exist == true {
+		controllers.Response(ctx, http.StatusOK, "名称已存在", true)
+	} else {
+		controllers.Response(ctx, http.StatusOK, "名称不存在", false)
+	}
+}
+func (c *InfoController) ExistsInfoByMd5(ctx *gin.Context) {
+	var query models.InfoQuery
+	// 绑定查询参数
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		controllers.Response(ctx, http.StatusBadRequest, "参数错误", nil)
 		return
 	}
 
+	exist, _ := c.infoService.CheckInfoExistsByMD5(query.Md5)
+	if exist == true {
+		controllers.Response(ctx, http.StatusOK, "文件已存在", true)
+	} else {
+		controllers.Response(ctx, http.StatusOK, "文件不存在", false)
+	}
+}
+
+func (c *InfoController) CreateInfo(ctx *gin.Context) {
 	title := ctx.PostForm("title")
 	infoType := ctx.PostForm("type")
 	coreDescription := ctx.PostForm("core_description")
 	permissionNote := ctx.PostForm("permission_note")
 	remark := ctx.PostForm("remark")
+	md5 := ctx.PostForm("md5")
 
-	if title == "" || infoType == "" {
+	if title == "" || infoType == "" || md5 == "" {
 		controllers.Response(ctx, http.StatusBadRequest, "参数缺失", nil)
 		return
 	}
 
-	// 保存文件
-	log.Infoln("保存文件:", file.Filename)
-	// 创建目录路径
-	dirPath := filepath.Join("uploads")
-	if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-		log.Errorf("本地目录:%s, 创建失败", dirPath)
-		controllers.Response(ctx, http.StatusInternalServerError, "创建本地目录失败", nil)
-		return
+	log.Infoln("创建信息:", title, infoType, coreDescription, permissionNote, remark, md5)
+
+	infoByMD5, err1 := c.infoService.GetInfoByMD5(md5)
+	if err1 != nil {
+		file, err := ctx.FormFile("file")
+		if err != nil {
+			controllers.Response(ctx, http.StatusBadRequest, "文件上传失败", nil)
+			return
+		}
+		//controllers.Response(ctx, http.StatusBadRequest, "文件已存在", nil)
+
+		// 保存文件
+		log.Infoln("保存文件:", file.Filename)
+		// 创建目录路径
+		dirPath := filepath.Join(config.GetAppConf().FilePath)
+		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+			log.Errorf("本地目录:%s, 创建失败", dirPath)
+			controllers.Response(ctx, http.StatusInternalServerError, "创建本地目录失败", nil)
+			return
+		}
+
+		// 生成新的文件名：type值+yymmddhhMMss
+		//timestamp := time.Now().Format("060102150405") // yyMMddHHmmss格式
+		newFileName := md5 + filepath.Ext(file.Filename)
+
+		// 保存文件到本地时间命名的目录
+		filePath := filepath.Join(dirPath, newFileName)
+		log.Infoln("保存文件:", filePath)
+
+		if err := ctx.SaveUploadedFile(file, filePath); err != nil {
+			controllers.Response(ctx, http.StatusInternalServerError, "文件保存失败", nil)
+			return
+		}
+		//md5, _ := util.CalculateFileMD5(filePath)
+		infoByMD5 = &models.Info{
+			FilePath: newFileName,
+			Format:   filepath.Ext(file.Filename)[1:], // 移除点号
+			Size:     uint64(file.Size),
+		}
 	}
-
-	// 生成新的文件名：type值+yymmddhhMMss
-	timestamp := time.Now().Format("060102150405") // yyMMddHHmmss格式
-	newFileName := infoType + "-" + timestamp + filepath.Ext(file.Filename)
-
-	// 保存文件到本地时间命名的目录
-	filePath := filepath.Join(dirPath, newFileName)
-	log.Infoln("保存文件:", filePath)
-
-	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		controllers.Response(ctx, http.StatusInternalServerError, "文件保存失败", nil)
-		return
-	}
-
-	md5, _ := util.CalculateFileMD5(filePath)
 
 	// 创建信息记录
 	info := &models.Info{
 		Type:            infoType,
 		Title:           title,
-		Format:          filepath.Ext(file.Filename)[1:], // 移除点号
-		FilePath:        filePath,
-		Size:            uint64(file.Size),
+		Format:          infoByMD5.Format,
+		FilePath:        infoByMD5.FilePath,
+		Size:            infoByMD5.Size,
 		CoreDescription: coreDescription,
 		PermissionNote:  permissionNote,
 		Remark:          remark,
@@ -97,15 +136,14 @@ func (c *InfoController) DeleteInfo(ctx *gin.Context) {
 		return
 	}
 
-	info, err := c.infoService.GetInfoByID(id)
-	if err != nil {
-		controllers.Response(ctx, http.StatusNotFound, "信息不存在", nil)
-		return
-	}
+	//info, err := c.infoService.GetInfoByID(id)
+	//if err != nil {
+	//	controllers.Response(ctx, http.StatusNotFound, "信息不存在", nil)
+	//	return
+	//}
 
 	if err := c.infoService.DeleteInfoByID(id); err != nil {
 		controllers.Response(ctx, http.StatusInternalServerError, "删除失败", nil)
-		_ = os.Remove(info.FilePath)
 		return
 	}
 
