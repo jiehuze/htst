@@ -37,6 +37,19 @@ func SetUp() *gin.Engine {
 		mainGroup.GET("/info/click/:id", infoController.Increment)
 		mainGroup.GET("/info/existsByTitle", infoController.ExistsInfoByTitle)
 		mainGroup.GET("/info/existsByMd5", infoController.ExistsInfoByMd5)
+
+		doctorController := v1.NewDoctorInfoController(services.IDoctor)
+		mainGroup.POST("/doctor/add", doctorController.CreateDoctorInfo)
+		mainGroup.PUT("/doctor/update", doctorController.UpdateDoctorInfo)
+		mainGroup.GET("/doctor/list", doctorController.ListDoctorInfos)
+		mainGroup.GET("/doctor/:id", doctorController.GetDoctorInfo)
+		mainGroup.DELETE("/doctor/:id", doctorController.DeleteDoctorInfo)
+
+		contactController := v1.NewContactController(services.IContact)
+		mainGroup.POST("/contact/add", contactController.CreateContact)
+		mainGroup.PUT("/contact/update", contactController.UpdateContact)
+		mainGroup.GET("/contact/one", contactController.FirstContact)
+
 	})
 
 	return g

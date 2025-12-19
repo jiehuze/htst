@@ -51,7 +51,7 @@ func (r *userRepository) Update(user *models.SysUser) error {
 	}
 
 	// 使用 Updates 方法只更新指定字段
-	return storage.DB.Model(&models.SysUser{}).Where("id = ?", user.ID).Updates(updates).Error
+	return storage.DB.Model(&models.SysUser{}).Where("username = ?", user.Username).Updates(updates).Error
 }
 
 func (r *userRepository) DeleteByID(id uint64) error {
